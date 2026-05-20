@@ -8,7 +8,7 @@
 <style>
 :root{--pd:#5C3A7A;--p:#8A5AAF;--pm:#B07FD4;--pl:#D4B8E8;--pp:#F2EAF9;--pbg:#FAF5FF;--bd:#4A2A10;--b:#7B4A2F;--border:#DEC8F0;--muted:#9B7AAA;--green:#4A7C59;--red:#C0392B;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'DM Sans',sans-serif;background:var(--pbg);color:var(--bd);min-height:100vh;}
+body{font-family:'DM Sans',sans-serif;background:var(--pbg);color:var(--bd);min-height:100vh;overflow-x:hidden;}
 .screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,#EDE0FA 0%,#F9F0FF 45%,#FDF6EE 100%);}
 .login-cat{font-size:4rem;margin-bottom:10px;}
 .login-brand{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;color:var(--pd);margin-bottom:4px;text-align:center;}
@@ -54,7 +54,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--p);background:#fff;}
 .sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;}
 .sync-dot.online{background:#4A7C59;}.sync-dot.offline{background:var(--red);}.sync-dot.syncing{background:#C4950A;animation:pulse .8s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-#app-screen{display:none;}
+#app-screen{display:none;overflow-x:hidden;}
 header{background:var(--pd);padding:12px 18px;display:flex;align-items:center;gap:11px;position:sticky;top:0;z-index:100;box-shadow:0 4px 24px rgba(60,20,90,.4);}
 .hdr-icon{font-size:1.4rem;}.hdr-brand{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--pl);}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
@@ -67,8 +67,10 @@ nav::-webkit-scrollbar{display:none;}
 nav button{flex-shrink:0;padding:9px 11px;border:none;background:transparent;color:var(--pl);font-family:'DM Sans',sans-serif;font-size:.79rem;font-weight:500;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;opacity:.6;}
 nav button.active{color:#fff;border-bottom-color:var(--pl);opacity:1;}
 nav button:hover:not(.active){opacity:1;}
-main{padding:16px 20px 40px;max-width:1100px;margin:0 auto;}
-.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:17px;margin-bottom:13px;box-shadow:0 2px 14px rgba(138,90,175,.07);}
+main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing:border-box;overflow-x:hidden;}
+
+[id^="tab-"]{width:100%;box-sizing:border-box;}
+.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:17px;margin-bottom:13px;box-shadow:0 2px 14px rgba(138,90,175,.07);min-width:0;overflow:hidden;}
 .card-title{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--pd);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
 .card-title span{font-size:.77rem;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:400;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -81,7 +83,7 @@ main{padding:16px 20px 40px;max-width:1100px;margin:0 auto;}
 .prog-label{display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-bottom:3px;}
 .prog-bar{height:9px;background:var(--border);border-radius:10px;overflow:hidden;}
 .prog-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--p),var(--pm));transition:width .6s ease;}
-.tbl{width:100%;border-collapse:collapse;font-size:.81rem;table-layout:auto;}
+.tbl{width:100%;border-collapse:collapse;font-size:.81rem;}
 .tbl th{background:var(--pbg);padding:9px 10px;text-align:left;font-weight:600;color:var(--pd);font-size:.71rem;text-transform:uppercase;letter-spacing:.04em;}
 .tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
 .tbl tr:last-child td{border-bottom:none;}
@@ -1141,21 +1143,24 @@ function renderIngredientes(){
     const price=state.prices[i.id]!=null?state.prices[i.id]:i.pkgPrice;
     const isDefault=!!DEFAULT_ING_REG[i.id];
     const isHidden=hidden.includes(i.id);
-    const dis=isHidden?' disabled':'';
-    const tag=isDefault?'<span style="font-size:.68rem;background:var(--pp);color:var(--pd);padding:1px 5px;border-radius:4px;margin-left:5px">padrao</span>':'';
-    let tr='<tr style="'+(isHidden?'opacity:.5':'')+'" data-ingid="'+i.id+'">';
+    const fldDis=isDefault||isHidden;
+    const tag=isDefault?'<span style="font-size:.68rem;background:var(--pp);color:var(--pd);padding:1px 5px;border-radius:4px;margin-left:5px">padrão</span>':'';
+    const si=(id,val,w,dis)=>'<input id="'+id+'" value="'+val+'" style="width:'+w+'px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:'+(dis?'#f8f5ff':'var(--pbg)')+';outline:none" '+(dis?'disabled':'')+' >';
+    const sin=(id,val,w,dis)=>'<input id="'+id+'" type="number" value="'+val+'" step="0.01" style="width:'+w+'px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:'+(dis?'#f8f5ff':'var(--pbg)')+';outline:none" '+(dis?'disabled':'')+' >';
+    let tr='<tr style="'+(isHidden?'opacity:.5':'')+'">';
     tr+='<td><b>'+i.name+'</b>'+tag+'</td>';
-    tr+='<td><input id="ir-unit-'+i.id+'" value="'+(i.unit||'un')+'" style="width:55px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"'+dis+'></td>';
-    tr+='<td><input id="ir-pkg-'+i.id+'" value="'+(i.pkgName||'')+'" style="width:130px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"'+dis+'></td>';
-    tr+='<td><input id="ir-qty-'+i.id+'" type="number" value="'+(i.pkgQty||1)+'" step="0.01" style="width:65px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"'+dis+'></td>';
-    tr+='<td><input id="ir-price-'+i.id+'" type="number" value="'+price.toFixed(2)+'" step="0.01" style="width:65px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"'+dis+'></td>';
-    tr+='<td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">';
-    if(!isHidden){tr+='<button id="irsave-'+i.id+'" style="background:var(--pp);border:1px solid var(--border);border-radius:7px;padding:3px 8px;font-size:.77rem;cursor:pointer;color:var(--pd)">Salvar</button>';}
-    if(!isHidden){tr+='<button id="irrem-'+i.id+'" style="background:#FEECEC;border:none;border-radius:7px;padding:3px 7px;font-size:.77rem;cursor:pointer;color:var(--red)">Excluir</button>';}
-    if(isHidden){tr+='<button id="irrestore-'+i.id+'" style="background:#E8F5E9;border:1px solid #4A7C59;border-radius:7px;padding:3px 8px;font-size:.77rem;cursor:pointer;color:#2E7D32">Restaurar</button>';}
+    tr+='<td>'+si('ir-unit-'+i.id,i.unit||'un',46,fldDis)+'</td>';
+    tr+='<td>'+si('ir-pkg-'+i.id,i.pkgName||'',130,fldDis)+'</td>';
+    tr+='<td>'+sin('ir-qty-'+i.id,i.pkgQty||1,65,fldDis)+'</td>';
+    tr+='<td>'+sin('ir-price-'+i.id,price.toFixed(2),65,isHidden)+'</td>';
+    tr+='<td style="white-space:nowrap;display:flex;gap:4px;align-items:center">';
+    if(!isHidden){tr+='<button id="irsave-'+i.id+'" style="background:var(--pp);border:1px solid var(--border);border-radius:7px;padding:3px 8px;font-size:.77rem;cursor:pointer;color:var(--pd)">💾</button>';}
+    if(!isHidden){tr+='<button id="irrem-'+i.id+'" style="background:#FEECEC;border:none;border-radius:7px;padding:3px 7px;font-size:.77rem;cursor:pointer;color:var(--red)">🗑</button>';}
+    if(isHidden){tr+='<button id="irrestore-'+i.id+'" style="background:#E8F5E9;border:1px solid #4A7C59;border-radius:7px;padding:3px 8px;font-size:.77rem;cursor:pointer;color:#2E7D32">↩</button>';}
+    if(isDefault&&!isHidden){tr+='<span style="font-size:.65rem;color:var(--muted)">só preço</span>';}
     tr+='</td></tr>';
     return tr;
-  };
+  };;
 
   tbody.innerHTML=items.length?items.map(mkRow).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">'+(ingFilter==='ocultos'?'Nenhum ingrediente oculto':'Nenhum ingrediente encontrado')+'</td></tr>';
   // Attach button events after DOM insertion
