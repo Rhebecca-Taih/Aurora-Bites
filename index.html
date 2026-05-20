@@ -145,6 +145,18 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:var(--pbg);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.confirm-overlay{position:fixed;inset:0;background:rgba(40,15,70,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .18s;}
+.confirm-overlay.open{opacity:1;pointer-events:all;}
+.confirm-box{background:#fff;border-radius:18px;padding:26px 24px 20px;width:100%;max-width:340px;box-shadow:0 16px 50px rgba(92,58,122,.22);transform:translateY(16px);transition:transform .2s;}
+.confirm-overlay.open .confirm-box{transform:translateY(0);}
+.confirm-icon{font-size:2rem;margin-bottom:8px;text-align:center;}
+.confirm-msg{font-size:.92rem;color:var(--bd);text-align:center;line-height:1.55;margin-bottom:20px;}
+.confirm-btns{display:flex;gap:9px;justify-content:center;}
+.confirm-btns button{padding:9px 22px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.84rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.cbtn-ok{background:var(--p);color:#fff;}.cbtn-ok:hover{background:var(--pd);}
+.cbtn-cancel{background:var(--pp);color:var(--bd);border:1.5px solid var(--border)!important;}.cbtn-cancel:hover{background:var(--pl);}
+.cbtn-danger{background:var(--red);color:#fff;}.cbtn-danger:hover{background:#a93226;}
+.cbtn-green{background:var(--green);color:#fff;}.cbtn-green:hover{background:#3a6147;}
 </style>
 </head>
 <body>
@@ -538,6 +550,17 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
   </div>
 </div>
 
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">❓</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button class="cbtn-cancel" id="confirm-cancel">Cancelar</button>
+      <button class="cbtn-ok" id="confirm-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══ INGREDIENT REGISTRY ══
 const DEFAULT_ING_REG = {
@@ -792,7 +815,18 @@ function dayVal(ds,src){const s=src||(state.schedule[ds]||{}),prods=getProds();r
 function weekRec(days){return days.reduce((a,d)=>a+dayVal(d),0);}
 function updVendaProds(){const prods=getProds();['vr-prod','fin-prod'].forEach(id=>{const sel=document.getElementById(id);if(!sel)return;const cur=sel.value;sel.innerHTML=Object.entries(prods).map(([k,p])=>'<option value="'+k+'">'+p.emoji+' '+p.name+' - R$'+p.price+'</option>').join('');if(prods[cur])sel.value=cur;});}
 
-// ══ DASHBOARD ══
+// ══ MODAL DE CONFIRMAÇÃO ══
+function showConfirm({icon='❓',msg='',okLabel='Confirmar',okClass='cbtn-ok',onOk}){
+  document.getElementById('confirm-icon').textContent=icon;
+  document.getElementById('confirm-msg').innerHTML=msg;
+  const okBtn=document.getElementById('confirm-ok'),cancelBtn=document.getElementById('confirm-cancel'),overlay=document.getElementById('confirm-overlay');
+  okBtn.textContent=okLabel;okBtn.className=okClass;
+  overlay.classList.add('open');
+  const close=()=>overlay.classList.remove('open');
+  okBtn.onclick=()=>{close();onOk();};
+  cancelBtn.onclick=close;
+  overlay.onclick=(e)=>{if(e.target===overlay)close();};
+}
 function renderDash(){
   const t=today(),days=weekDays(t),tx=txArr();
   const todayTotal=dayVal(t)+tx.filter(x=>x.type==='venda'&&x.date===t).reduce((a,x)=>a+x.amount,0);
@@ -1173,7 +1207,7 @@ async function restoreIngFromReg(id){
   renderIngredientes();
 }
 
-// ── MUDANÇA 5: renderFiado corrigida ──
+// ── renderFiado: confirm modal + desmarcar ──
 function renderFiado(){
   const tx=txArr();
   const vendas=tx.filter(t=>t.type==='venda'&&t.customer&&t.customer.trim()).sort((a,b)=>(a.customer||'').localeCompare(b.customer||'')||(b.ts||0)-(a.ts||0));
@@ -1184,12 +1218,7 @@ function renderFiado(){
   document.getElementById('fiado-pessoas').textContent=pessoas;
   document.getElementById('fiado-recebido').textContent=fmtR(totalPago);
   const byCustomer={};
-  vendas.forEach(t=>{
-    if(!byCustomer[t.customer])byCustomer[t.customer]={txs:[],totalAberto:0,totalPago:0};
-    byCustomer[t.customer].txs.push(t);
-    if(t.paid)byCustomer[t.customer].totalPago+=t.amount;
-    else byCustomer[t.customer].totalAberto+=t.amount;
-  });
+  vendas.forEach(t=>{if(!byCustomer[t.customer])byCustomer[t.customer]={txs:[],totalAberto:0,totalPago:0};byCustomer[t.customer].txs.push(t);if(t.paid)byCustomer[t.customer].totalPago+=t.amount;else byCustomer[t.customer].totalAberto+=t.amount;});
   const fl=document.getElementById('fiado-list');if(!fl)return;
   const hist=document.getElementById('fiado-hist');
   if(!Object.keys(byCustomer).length){
@@ -1201,13 +1230,11 @@ function renderFiado(){
   const paidEntries=Object.entries(byCustomer).filter(([,d])=>d.totalAberto===0).sort((a,b)=>a[0].localeCompare(b[0]));
   let pendingHTML='';
   pendingEntries.forEach(([nome,data],ci)=>{
-    const {txs,totalAberto,totalPago}=data;
-    let rows='';
+    const {txs,totalAberto,totalPago}=data;let rows='';
     txs.forEach(t=>{
-      const isPago=!!t.paid;
-      const itemDesc=(t.desc||'').replace(' | '+nome,'').replace(' - '+nome,'');
+      const isPago=!!t.paid,itemDesc=(t.desc||'').replace(' | '+nome,'').replace(' - '+nome,'');
       rows+='<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">'+
-        '<span id="icon-'+t._key+'" style="font-size:1.2rem;min-width:24px;text-align:center;cursor:'+(isPago?'default':'pointer')+';user-select:none" title="'+(isPago?'Pago':'Clique para marcar como pago')+'">'+(isPago?'✅':'⬜')+'</span>'+
+        '<span id="icon-'+t._key+'" style="font-size:1.2rem;min-width:24px;text-align:center;cursor:pointer;user-select:none" title="'+(isPago?'Clique para desmarcar':'Clique para marcar como pago')+'">'+(isPago?'✅':'⬜')+'</span>'+
         '<div style="flex:1"><div style="font-size:.83rem;color:var(--bd)">'+itemDesc+'</div><div style="font-size:.71rem;color:var(--muted)">'+t.date+(isPago&&t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div>'+
         '<span style="font-weight:700;font-size:.88rem;color:'+(isPago?'var(--green)':'var(--red)')+'">'+fmtR(t.amount)+'</span>'+
         (!isPago?'<button id="fpago-'+t._key+'" style="background:var(--green);border:none;border-radius:7px;padding:4px 9px;font-size:.75rem;cursor:pointer;color:#fff;white-space:nowrap">✅ Pago</button>':'')+
@@ -1218,34 +1245,31 @@ function renderFiado(){
       '<div style="margin-left:auto;text-align:right">'+
         (totalAberto>0?'<div style="font-size:.85rem;color:var(--red);font-weight:700">Deve: '+fmtR(totalAberto)+'</div>':'')+
         (totalPago>0?'<div style="font-size:.78rem;color:var(--green)">Já pagou: '+fmtR(totalPago)+'</div>':'')+
-      '</div></div>'+
-      rows+
-      '<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">'+
-        '<button id="fpagoall-'+ci+'" class="btn btn-primary btn-sm" style="width:auto;background:var(--green)">✅ Marcar tudo como Pago</button>'+
-      '</div></div>';
+      '</div></div>'+rows+
+      '<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button id="fpagoall-'+ci+'" class="btn btn-primary btn-sm" style="width:auto;background:var(--green)">✅ Marcar tudo como Pago</button></div></div>';
   });
   fl.innerHTML=pendingEntries.length?pendingHTML:'<div class="card" style="text-align:center;color:var(--green);padding:24px;font-weight:600">🎉 Nenhuma pendência! Todos os clientes em dia.</div>';
   pendingEntries.forEach(([nome,data],ci)=>{
     const btnAll=document.getElementById('fpagoall-'+ci);
-    if(btnAll)btnAll.onclick=()=>marcarPago(data.txs.filter(t=>!t.paid).map(t=>t._key));
-    data.txs.filter(t=>!t.paid).forEach(t=>{
+    if(btnAll)btnAll.onclick=()=>showConfirm({icon:'✅',msg:'Marcar <b>todas as vendas</b> de <b>'+nome+'</b> como pagas?',okLabel:'Marcar como Pago',okClass:'cbtn-green',onOk:()=>marcarPago(data.txs.filter(t=>!t.paid).map(t=>t._key))});
+    data.txs.forEach(t=>{
       const btn=document.getElementById('fpago-'+t._key);
-      if(btn)btn.onclick=()=>marcarPago([t._key]);
+      if(btn)btn.onclick=()=>showConfirm({icon:'✅',msg:'Marcar venda de <b>'+fmtR(t.amount)+'</b> como paga?',okLabel:'Confirmar Pagamento',okClass:'cbtn-green',onOk:()=>marcarPago([t._key])});
       const icon=document.getElementById('icon-'+t._key);
-      if(icon)icon.onclick=()=>marcarPago([t._key]);
+      if(icon){
+        if(t.paid){icon.onclick=()=>showConfirm({icon:'↩️',msg:'Desmarcar pagamento de <b>'+fmtR(t.amount)+'</b> de <b>'+nome+'</b>?',okLabel:'Desmarcar',okClass:'cbtn-danger',onOk:()=>desmarcarPago(t._key)});}
+        else{icon.onclick=()=>showConfirm({icon:'✅',msg:'Marcar venda de <b>'+fmtR(t.amount)+'</b> como paga?',okLabel:'Confirmar Pagamento',okClass:'cbtn-green',onOk:()=>marcarPago([t._key])});}
+      }
     });
   });
   if(hist){
     hist.style.display='';
     if(paidEntries.length){
       hist.innerHTML=paidEntries.map(([nome,data])=>{
-        const rows=data.txs.map(t=>'<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)">'+
-          '<span style="font-size:1.1rem">✅</span>'+
-          '<div style="flex:1"><div style="font-size:.81rem;color:var(--muted)">'+(t.desc||'').replace(' | '+nome,'')+'</div>'+
-          '<div style="font-size:.69rem;color:var(--muted)">'+t.date+(t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div>'+
-          '<span style="font-weight:600;font-size:.85rem;color:var(--green)">'+fmtR(t.amount)+'</span></div>').join('');
+        const rows=data.txs.map(t=>'<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)"><span id="hist-icon-'+t._key+'" style="font-size:1.1rem;cursor:pointer;user-select:none" title="Clique para desmarcar pagamento">✅</span><div style="flex:1"><div style="font-size:.81rem;color:var(--muted)">'+(t.desc||'').replace(' | '+nome,'')+'</div><div style="font-size:.69rem;color:var(--muted)">'+t.date+(t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div><span style="font-weight:600;font-size:.85rem;color:var(--green)">'+fmtR(t.amount)+'</span></div>').join('');
         return '<div style="margin-bottom:12px"><div style="font-weight:700;font-size:.85rem;color:var(--bd);margin-bottom:4px">👤 '+nome+'</div>'+rows+'</div>';
       }).join('');
+      paidEntries.forEach(([nome,data])=>{data.txs.forEach(t=>{const icon=document.getElementById('hist-icon-'+t._key);if(icon)icon.onclick=()=>showConfirm({icon:'↩️',msg:'Desmarcar pagamento de <b>'+fmtR(t.amount)+'</b> de <b>'+nome+'</b>?',okLabel:'Desmarcar',okClass:'cbtn-danger',onOk:()=>desmarcarPago(t._key)});});});
     }else{
       hist.innerHTML='<div style="color:var(--muted);font-size:.83rem;padding:8px">Nenhum cliente totalmente quitado ainda.</div>';
     }
@@ -1253,14 +1277,14 @@ function renderFiado(){
 }
 
 async function marcarPago(keys){
-  if(!confirm('Marcar todos como pago?'))return;
-  for(const key of keys){
-    const tr=state.transactions[key];if(!tr)continue;
-    const updated={...tr,paid:true,paidDate:today(),paidTs:Date.now()};
-    state.transactions[key]=updated;
-    await fbSet('ab/transactions/'+key,updated);
-  }
+  for(const key of keys){const tr=state.transactions[key];if(!tr)continue;const updated={...tr,paid:true,paidDate:today(),paidTs:Date.now()};state.transactions[key]=updated;await fbSet('ab/transactions/'+key,updated);}
   rerender();
+}
+
+async function desmarcarPago(key){
+  const tr=state.transactions[key];if(!tr)return;
+  const updated={...tr,paid:false};delete updated.paidDate;delete updated.paidTs;
+  state.transactions[key]=updated;await fbSet('ab/transactions/'+key,updated);rerender();
 }
 
 // ══ BOOT ══
