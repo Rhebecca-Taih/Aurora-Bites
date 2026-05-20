@@ -365,7 +365,6 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
         </div>
       </div>
     </div>
-    </div>
   </div>
 
   <div id="tab-estoque" class="hidden">
@@ -471,7 +470,6 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
       <button class="btn btn-ghost btn-sm" id="ingf-custom" onclick="setIngFilter('custom')">✨ Personalizados</button>
       <button class="btn btn-ghost btn-sm" id="ingf-ocultos" onclick="setIngFilter('ocultos')">👁 Ocultos</button>
     </div>
-    <!-- Add new -->
     <div class="card">
       <div class="card-title">➕ Novo Ingrediente</div>
       <div style="display:grid;grid-template-columns:1fr 60px 1fr 80px 80px;gap:7px;align-items:end;flex-wrap:wrap">
@@ -484,7 +482,6 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
       <button class="btn btn-primary btn-sm" style="width:auto;margin-top:4px" onclick="addIngToReg()">➕ Adicionar Ingrediente</button>
       <div id="ing-reg-ok" class="hidden" style="margin-top:7px;font-size:.81rem;color:var(--green);font-weight:600">✅ Salvo!</div>
     </div>
-    <!-- List -->
     <div class="card">
       <div class="card-title">📋 Lista de Ingredientes</div>
       <div style="overflow-x:auto">
@@ -506,7 +503,7 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
     </div>
     <div id="fiado-list"></div>
     <div class="card" style="margin-top:8px">
-      <div class="card-title">✅ Histórico — Fiados Pagos</div>
+      <div class="card-title">✅ Histórico — Clientes Quitados</div>
       <div id="fiado-hist"></div>
     </div>
   </div>
@@ -563,7 +560,6 @@ const DEFAULT_ING_REG = {
   "pp":  {id:"pp",  name:"Polpa de Fruta",       unit:"un",   pkgName:"Pacote/Un.",    pkgQty:1,    pkgPrice:8.00},
 };
 
-// Recipe quantities in NATURAL UNITS per lote
 const DEFAULT_RECIPE_QTYS = {
   brownie:  {lote:20, ings:[{ingId:"ov",qty:9},{ingId:"ac",qty:900},{ingId:"mg",qty:600},{ingId:"nc",qty:600},{ingId:"ft",qty:540},{ingId:"lc",qty:2},{ingId:"cl",qty:2},{ingId:"lp",qty:80},{ingId:"mt",qty:30}]},
   torta:    {lote:8,  ings:[{ingId:"fr",qty:600},{ingId:"rq",qty:60},{ingId:"ml",qty:0.5},{ingId:"ct",qty:1},{ingId:"ov",qty:3},{ingId:"ft",qty:240},{ingId:"lk",qty:300}]},
@@ -591,26 +587,21 @@ function getProds(){
 }
 function getLote(id){return state.recipeQtys[id]?.lote||DEFAULT_RECIPE_QTYS[id]?.lote||20;}
 function getRecipeQtys(id){
-  // If custom recipe exists, validate all ingredient IDs
   if(state.recipeQtys[id]){
     const reg=getIngReg();
     const rq=state.recipeQtys[id];
     const ings=rq.ings||[];
-    // Check if all ingredient IDs are valid in current registry
     const allValid=ings.every(i=>reg[i.ingId]);
     if(allValid&&ings.length>0)return{lote:rq.lote,ings};
-    // Has bad IDs: if default exists, use it and queue migration
     if(DEFAULT_RECIPE_QTYS[id]){
       queueRecipeMigration(id);
       return DEFAULT_RECIPE_QTYS[id];
     }
-    // Custom product with bad IDs: return empty
     return{lote:rq.lote,ings:[]};
   }
   return DEFAULT_RECIPE_QTYS[id]||{lote:20,ings:[]};
 }
 
-// Queue migrations to run after current render
 const _migrationQueue=new Set();
 function queueRecipeMigration(id){
   if(_migrationQueue.has(id))return;
@@ -620,7 +611,6 @@ function queueRecipeMigration(id){
 async function runMigrations(){
   for(const id of _migrationQueue){
     if(!DEFAULT_RECIPE_QTYS[id])continue;
-    console.log('[Migration] Resetting recipe',id,'to default format');
     state.recipeQtys[id]=DEFAULT_RECIPE_QTYS[id];
     await fbSet('ab/recipeQtys/'+id,DEFAULT_RECIPE_QTYS[id]);
   }
@@ -630,7 +620,6 @@ async function runMigrations(){
 function findIngById(id){return getIngReg()[id]||null;}
 function findIngByName(name){return Object.values(getIngReg()).find(i=>i.name.toLowerCase()===name.toLowerCase())||null;}
 
-// Shopping calculation with natural units
 function buildShoppingData(days){
   const prods=getProds(),reg=getIngReg();
   const qtyNeeded={},ingMeta={};
@@ -652,7 +641,6 @@ function buildShoppingData(days){
     const pkgQty=info.pkgQty||1;
     const pkgsNeeded=Math.ceil(totalQty/pkgQty);
     const pkgsInStock=state.estoque[ingId]?.qty||0;
-    // Compare in natural units: 0.1 pkg farinha (1kg) = 100g in stock
     const unitsInStock=pkgsInStock*pkgQty;
     const unitsStillNeeded=Math.max(0,totalQty-unitsInStock);
     const pkgsToBuy=Math.ceil(unitsStillNeeded/pkgQty);
@@ -679,7 +667,7 @@ async function fbGet(p,timeoutMs=10000){
     return r.json();
   }catch(e){return null;}
 }
-async function fbSet(p,v){setSS('syncing');try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),8000);await fetch(`${DB_URL}/${p}.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v),signal:ctrl.signal});setSS('online');}catch(e){setSS('offline');}  }
+async function fbSet(p,v){setSS('syncing');try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),8000);await fetch(`${DB_URL}/${p}.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v),signal:ctrl.signal});setSS('online');}catch(e){setSS('offline');}}
 async function fbPush(p,v){setSS('syncing');try{const r=await fetch(`${DB_URL}/${p}.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});const d=await r.json();setSS('online');if(d&&d.name&&p.includes('transactions')){state.transactions[d.name]={...v,_key:d.name};rerender();}return d?d.name:null;}catch(e){setSS('offline');}}
 async function fbRemove(p){setSS('syncing');try{await fetch(`${DB_URL}/${p}.json`,{method:'DELETE'});setSS('online');const pts=p.replace('ab/','').split('/').filter(Boolean);if(pts[0]==='transactions'&&pts[1])delete state.transactions[pts[1]];rerender();}catch(e){setSS('offline');}}
 
@@ -732,13 +720,11 @@ async function initApp(){
   setLoadMsg('Conectando...');
   const loadEl=document.getElementById('loading');
   loadEl.style.display='flex';loadEl.classList.remove('hide');
-  // Remove any old retry button
   const oldBtn=document.getElementById('load-retry');if(oldBtn)oldBtn.remove();
 
   const d=await fbGet('ab',10000);
 
   if(d===null){
-    // Could be timeout or network error — allow retry
     setLoadMsg('Sem conexao. Verifique a internet.');
     const btn=document.createElement('button');
     btn.id='load-retry';
@@ -747,7 +733,6 @@ async function initApp(){
     btn.onclick=()=>initApp();
     const msgEl=document.getElementById('loading-msg');
     if(msgEl)msgEl.after(btn);
-    // Also add option to reconfigure Firebase URL
     const btn2=document.createElement('button');
     btn2.textContent='⚙️ Trocar URL do banco';
     btn2.style.cssText='margin-top:8px;padding:7px 16px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:10px;font-family:DM Sans,sans-serif;font-size:.82rem;cursor:pointer;display:block;';
@@ -760,7 +745,6 @@ async function initApp(){
   loadStateFromObj(d);
   if(!state.users){try{const bak=lsl('ab_users_bak',null);if(bak)state.users=bak;}catch(e){}}
   startSSE();
-  // Migrate any recipes with stale ingredient IDs
   setTimeout(()=>{Object.keys(DEFAULT_PRODS).forEach(id=>queueRecipeMigration(id));},2000);
   if(!state.users){showScreen('login');showPanel('setup-panel');}
   else{try{svl('ab_users_bak',state.users);}catch(e){}updCards();showScreen('login');showPanel('choose-panel');}
@@ -822,10 +806,10 @@ function renderDash(){
   document.getElementById('dash-trans').innerHTML=recent.length?recent.map(tHTML).join(''):'<div style="text-align:center;color:var(--muted);font-size:.83rem;padding:16px">Nenhuma movimentacao ainda</div>';
   updVendaProds();renderVrGrid();updVrTotal();
 }
-function tHTML(tr){const ic=tr.type==='venda'?'':tr.type==='despesa'?'':'';const sg=tr.type==='despesa'?'neg':'pos';const px=tr.type==='despesa'?'-':'+';const icon=tr.type==='venda'?'💚':tr.type==='despesa'?'🔴':'💜';return '<div class="trans-row"><div style="font-size:1.1rem">'+icon+'</div><div style="flex:1"><div class="ti-name">'+(tr.desc||'')+'</div><div class="ti-date">'+(tr.date||'')+'</div></div><span class="trans-amt '+sg+'">'+px+fmtR(tr.amount)+'</span><button class="trans-del" onclick="delTr(\''+tr._key+'\')">🗑</button></div>';}
+function tHTML(tr){const sg=tr.type==='despesa'?'neg':'pos';const px=tr.type==='despesa'?'-':'+';const icon=tr.type==='venda'?'💚':tr.type==='despesa'?'🔴':'💜';return '<div class="trans-row"><div style="font-size:1.1rem">'+icon+'</div><div style="flex:1"><div class="ti-name">'+(tr.desc||'')+'</div><div class="ti-date">'+(tr.date||'')+'</div></div><span class="trans-amt '+sg+'">'+px+fmtR(tr.amount)+'</span><button class="trans-del" onclick="delTr(\''+tr._key+'\')">🗑</button></div>';}
 
-// ── Sale form: row-based (one row per product line) ──
-let vrRows=[]; // [{prodId, qty}]
+// ── Sale form rows ──
+let vrRows=[];
 
 function renderVrGrid(){
   const prods=getProds();
@@ -837,14 +821,11 @@ function renderVrGrid(){
 function rebuildVrRows(){
   const prods=getProds();
   const grid=document.getElementById('vr-grid');if(!grid)return;
-  let html='';
-  // Header
-  html+='<div style="display:grid;grid-template-columns:1fr 80px 80px 32px;gap:6px;margin-bottom:4px;padding:0 2px">';
+  let html='<div style="display:grid;grid-template-columns:1fr 80px 80px 32px;gap:6px;margin-bottom:4px;padding:0 2px">';
   html+='<span style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase">Produto</span>';
   html+='<span style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase">Qtd</span>';
   html+='<span style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase">Subtotal</span>';
   html+='<span></span></div>';
-  // Rows
   vrRows.forEach((row,i)=>{
     const p=prods[row.prodId]||Object.values(prods)[0];
     const sub=p?(p.price*(row.qty||0)):0;
@@ -857,7 +838,6 @@ function rebuildVrRows(){
     html+='</div>';
   });
   grid.innerHTML=html;
-  // Attach events
   vrRows.forEach((_,i)=>{
     const sel=document.getElementById('vrr-prod-'+i),qty=document.getElementById('vrr-qty-'+i),del=document.getElementById('vrr-del-'+i);
     if(sel)sel.onchange=()=>{vrRows[i].prodId=sel.value;updVrTotal();rebuildVrRows();};
@@ -879,12 +859,8 @@ function updVrTotal(){
   const el=document.getElementById('vr-total');if(el)el.textContent=fmtR(total);
 }
 
-function adjVrCart(k,dir){} // kept for compat
-function setVrCart(k,v){}   // kept for compat
-
 async function addSale(){
   const prods=getProds();
-  // Read from vrRows
   const items=vrRows.filter(r=>r.qty>0&&prods[r.prodId]).map(r=>({prodId:r.prodId,qty:r.qty,price:prods[r.prodId].price}));
   if(!items.length){alert('Adicione pelo menos um produto.');return;}
   const date=document.getElementById('vr-date').value||today();
@@ -894,7 +870,6 @@ async function addSale(){
   const total=items.reduce((a,i)=>a+i.price*i.qty,0);
   const desc=items.map(i=>prods[i.prodId].emoji+' '+i.qty+'x '+prods[i.prodId].name).join(' + ')+(cliente?' | '+cliente:'')+(obs?' ('+obs+')':'');
   await fbPush('ab/transactions',{type:'venda',date,amount:total,desc,customer:cliente||null,paid:pagamento==='pago',items,ts:Date.now()});
-  // Reset
   vrRows=[{prodId:Object.keys(prods)[0]||'',qty:1}];
   rebuildVrRows();updVrTotal();
   document.getElementById('vr-obs').value='';
@@ -923,12 +898,6 @@ function renderDM(){
   Object.entries(prods).forEach(([k,p])=>{const qty=dayEdits[k]||0;html+='<div style="border:1.5px solid var(--border);border-radius:10px;padding:10px"><div style="font-weight:600;font-size:.83rem">'+p.emoji+' '+p.name+'</div><div style="font-size:.72rem;color:var(--muted);margin-bottom:7px">'+fmtR(p.price)+'/un</div><div style="display:flex;align-items:center;gap:5px"><button onclick="adjD(\''+k+'\',-1)" style="width:27px;height:27px;border:1px solid var(--border);background:var(--pp);border-radius:6px;cursor:pointer">-</button><input id="dq-'+k+'" type="number" value="'+qty+'" min="0" style="width:46px;text-align:center;padding:4px 5px;font-size:.86rem" oninput="setD(\''+k+'\',this.value)"><button onclick="adjD(\''+k+'\',1)" style="width:27px;height:27px;border:1px solid var(--border);background:var(--pp);border-radius:6px;cursor:pointer">+</button></div><div id="dlbl-'+k+'" style="font-size:.71rem;color:var(--p);margin-top:4px;font-weight:600">= '+fmtR(p.price*qty)+'</div></div>';});
   html+='</div><div style="margin-top:12px;display:flex;gap:7px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="clearD()">Limpar</button><button class="btn btn-primary btn-sm" style="width:auto" onclick="saveDayAndClose()">Salvar</button></div>';
   document.getElementById('dm-body').innerHTML=html;
-  // Attach events
-  Object.keys(prods).forEach(k=>{
-    const bm=document.getElementById('db-m-'+k),bp=document.getElementById('db-p-'+k),inp=document.getElementById('dq-'+k);
-    if(bm)bm.onclick=()=>adjD(k,-1);if(bp)bp.onclick=()=>adjD(k,1);
-    if(inp)inp.oninput=function(){setD(k,this.value);};
-  });
 }
 function setD(k,v){const prods=getProds(),qty=Math.max(0,parseInt(v)||0);dayEdits[k]=qty;const lbl=document.getElementById('dlbl-'+k);if(lbl)lbl.textContent='= '+fmtR((prods[k]?.price||0)*qty);const val=dayVal(null,dayEdits),pct=Math.min(100,Math.round(val/375*100)),clr=val>=375?'var(--green)':val>0?'#C4950A':'var(--muted)';const pf=document.getElementById('dm-prog-fill'),pt=document.getElementById('dm-prog-txt');if(pf)pf.style.width=pct+'%';if(pt){pt.textContent=fmtR(val)+' / R$375 ('+pct+'%)';pt.style.color=clr;}}
 function adjD(k,dir){const el=document.getElementById('dq-'+k);if(!el)return;el.value=Math.max(0,(parseInt(el.value)||0)+dir);setD(k,el.value);}
@@ -970,37 +939,14 @@ async function registerShopExpense(){
 }
 async function savePrices(){const np={...state.prices};buildShoppingData(weekDays(shopWeekRef)).forEach(x=>{const el=document.getElementById('p-'+x.ingId);if(el)np[x.ingId]=parseFloat(el.value)||0;});state.prices=np;await fbSet('ab/prices',np);flash('price-ok');renderShop();}
 
-// Ingredient Registry (shown in Compras)
 function renderIngReg(){
-  const reg=getIngReg(),tbody=document.getElementById('ing-reg-tbody');if(!tbody)return;
-  const rows=Object.values(reg).sort((a,b)=>a.name.localeCompare(b.name)).map(i=>{const price=state.prices[i.id]!=null?state.prices[i.id]:i.pkgPrice;return '<tr><td><b>'+i.name+'</b></td><td><input id="ir-unit-'+i.id+'" value="'+(i.unit||'un')+'" style="width:55px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"></td><td><input id="ir-pkg-'+i.id+'" value="'+(i.pkgName||'')+'" style="width:130px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"></td><td><input id="ir-qty-'+i.id+'" type="number" value="'+(i.pkgQty||1)+'" step="0.01" style="width:65px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"></td><td><input id="ir-price-'+i.id+'" type="number" value="'+price.toFixed(2)+'" step="0.01" style="width:65px;font-size:.79rem;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--pbg);outline:none"></td><td><button onclick="saveIngRow(\''+i.id+'\')" style="background:var(--pp);border:1px solid var(--border);border-radius:7px;padding:3px 8px;font-size:.77rem;cursor:pointer;color:var(--pd)">Salvar</button>'+(state.ingReg[i.id]?'<button onclick="removeIngFromReg(\''+i.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:.8rem;margin-left:4px">🗑</button>':'')+'</td></tr>';});
-  tbody.innerHTML=rows.join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:12px">Nenhum ingrediente</td></tr>';
+  // renderIngReg is called from renderShop but ingredient editing lives in the Ingredientes tab
+  // Nothing to render here that isn't already in renderIngredientes
 }
-async function saveIngRow(id){
-  const unit=document.getElementById('ir-unit-'+id)?.value||'un',pkg=document.getElementById('ir-pkg-'+id)?.value||'',qty=parseFloat(document.getElementById('ir-qty-'+id)?.value)||1,price=parseFloat(document.getElementById('ir-price-'+id)?.value)||0;
-  const base=DEFAULT_ING_REG[id]||state.ingReg[id]||{id,name:id};
-  const updated={...base,unit,pkgName:pkg,pkgQty:qty,pkgPrice:price};
-  state.ingReg[id]=updated;await fbSet('ab/ingReg/'+id,updated);
-  state.prices[id]=price;await fbSet('ab/prices/'+id,price);
-  flash('ing-reg-ok');renderIngReg();renderShop();if(currentTab==='ingredientes')renderIngredientes();
-}
-async function addIngToReg(){
-  const name=(document.getElementById('ir-new-name')?.value||'').trim(),unit=document.getElementById('ir-new-unit')?.value||'un',pkg=document.getElementById('ir-new-pkg')?.value||'',qty=parseFloat(document.getElementById('ir-new-qty')?.value)||1,price=parseFloat(document.getElementById('ir-new-price')?.value)||0;
-  if(!name){alert('Digite o nome.');return;}
-  if(findIngByName(name)){alert(name+' ja existe no registro.');return;}
-  const id='ing'+Date.now().toString().slice(-6);
-  const newIng={id,name,unit,pkgName:pkg,pkgQty:qty,pkgPrice:price};
-  state.ingReg[id]=newIng;await fbSet('ab/ingReg/'+id,newIng);state.prices[id]=price;await fbSet('ab/prices/'+id,price);
-  ['ir-new-name','ir-new-unit','ir-new-pkg'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
-  ['ir-new-qty','ir-new-price'].forEach(i=>{const el=document.getElementById(i);if(el)el.value=i.includes('qty')?'1':'0';});
-  flash('ing-reg-ok');renderIngReg();if(currentTab==='ingredientes')renderIngredientes();
-}
-async function removeIngFromReg(id){if(!confirm('Remover do registro? So remove ingredientes personalizados.'))return;delete state.ingReg[id];await fbRemove('ab/ingReg/'+id);renderIngReg();}
 
 // ══ ESTOQUE ══
 function renderEstoque(){
-  const reg=getIngReg(),dl=document.getElementById('est-ing-dl');
-  // Build select options for estoque manual add
+  const reg=getIngReg();
   const estSel=document.getElementById('est-ing-sel');
   if(estSel){const sorted=Object.values(reg).sort((a,b)=>a.name.localeCompare(b.name));estSel.innerHTML='<option value="">-- Selecionar ingrediente --</option>'+sorted.map(i=>'<option value="'+i.id+'">'+i.name+'</option>').join('');}
   const items=Object.values(state.estoque).filter(x=>x&&x.name);
@@ -1054,7 +1000,6 @@ function renderReceitas(){
     return '<div class="card"><div class="card-title">'+p.emoji+' '+p.name+' <span>Lote de '+lote+' un.</span><div style="margin-left:auto;display:flex;gap:6px"><button onclick="openRecipeEdit(\''+id+'\')" style="background:var(--pp);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:.75rem;cursor:pointer;color:var(--pd)">Editar</button><button id=\"dupbtn-'+id+'\" style=\"background:var(--pp);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:.75rem;cursor:pointer;color:var(--pd)\">📋 Duplicar</button><button onclick="'+(isCustom?'deleteCustomProd(\''+id+'\')':'hideDefault(\''+id+'\')')+'" style="background:#FEECEC;border:none;border-radius:8px;padding:4px 10px;font-size:.75rem;cursor:pointer;color:var(--red)">Excluir</button></div></div><div class="grid3" style="margin-bottom:12px"><div class="stat"><div class="val">'+fmtR(p.price)+'</div><div class="lbl">Preco Venda</div></div><div class="stat"><div class="val">'+fmtR(cu)+'</div><div class="lbl">Custo/Unidade</div></div><div class="stat"><div class="val" style="color:var(--green)">'+mg+'%</div><div class="lbl">Margem</div></div><div class="stat"><div class="val">'+fmtR(cl)+'</div><div class="lbl">Custo Lote</div></div><div class="stat"><div class="val">'+fmtR(p.price*lote)+'</div><div class="lbl">Receita Lote</div></div><div class="stat"><div class="val" style="color:var(--green)">'+fmtR((p.price-cu)*lote)+'</div><div class="lbl">Lucro Lote</div></div></div>'+(rows?'<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Ingrediente</th><th>Qty no Lote</th><th>Embalagem</th><th>Emb. Necessarias</th><th>Preco/Emb</th><th>Custo</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr class="total"><td colspan="5">Custo Total do Lote ('+lote+' un.)</td><td>'+fmtR(cl)+'</td></tr></tfoot></table></div>':'<div style="color:var(--muted);font-size:.82rem;padding:8px">Clique em Editar para adicionar ingredientes.</div>')+'</div>';
   }).join('');
   document.getElementById('receitas-body').innerHTML=restoreHtml+cardsHtml;
-  // Attach duplicate buttons
   Object.keys(prods).forEach(id=>{
     const btn=document.getElementById('dupbtn-'+id);
     if(btn)btn.onclick=()=>duplicarReceita(id);
@@ -1070,7 +1015,6 @@ function openNewRecipe(){openRecipeModal(null,{name:'',emoji:'',price:0},{lote:1
 function duplicarReceita(id){
   const prods=getProds(),p=prods[id]||{};
   const {lote,ings}=getRecipeQtys(id);
-  // Open as NEW recipe pre-filled with copied data
   openRecipeModal(null,
     {name:'Cópia de '+p.name,emoji:p.emoji||'🍰',price:p.price||0},
     {lote,ings:[...ings]},
@@ -1078,12 +1022,35 @@ function duplicarReceita(id){
   );
 }
 
+// ── MUDANÇA 2: makeIngRowHtml com hidden input para ID real ──
 function makeIngRowHtml(ingEntry){
   const reg=getIngReg(),dlId='dl'+(++_dlId);
   const opts=Object.values(reg).sort((a,b)=>a.name.localeCompare(b.name)).map(i=>'<option value="'+i.name+'">').join('');
   const info=ingEntry?reg[ingEntry.ingId]||{}:{};
-  return '<div class="ring-row" style="display:grid;grid-template-columns:1fr 80px auto 34px;gap:5px;margin-bottom:6px;align-items:center"><div><input list="'+dlId+'" class="ring-name" value="'+(info.name||'')+'" placeholder="Ingrediente" onchange="ingPicked(this)" style="font-size:.8rem;padding:6px 8px;width:100%;border:1.5px solid var(--border);border-radius:7px;background:var(--pbg);outline:none"><datalist id="'+dlId+'">'+opts+'</datalist></div><input class="ring-qty" type="number" value="'+(ingEntry?.qty||'')+'" placeholder="Qty" step="0.1" min="0" style="font-size:.8rem;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;background:var(--pbg);outline:none"><span class="ring-unit" style="font-size:.77rem;color:var(--muted);white-space:nowrap;padding:6px 4px">'+(info.unit?info.unit+' ('+info.pkgName+')':'selecione um ingrediente')+'</span><button onclick="this.closest(\'.ring-row\').remove()" style="background:#FEECEC;border:none;border-radius:7px;padding:5px 7px;cursor:pointer;color:var(--red);font-size:.9rem">X</button></div>';}
-function ingPicked(inputEl){const val=inputEl.value.trim(),match=findIngByName(val);if(!match)return;const row=inputEl.closest('.ring-row'),span=row?.querySelector('.ring-unit');if(span)span.textContent=match.unit+' ('+match.pkgName+')';}
+  const existingId=ingEntry?.ingId||'';
+  return '<div class="ring-row" style="display:grid;grid-template-columns:1fr 80px auto 34px;gap:5px;margin-bottom:6px;align-items:center">'+
+    '<div>'+
+      '<input type="hidden" class="ring-id" value="'+existingId+'">'+
+      '<input list="'+dlId+'" class="ring-name" value="'+(info.name||'')+'" placeholder="Ingrediente" onchange="ingPicked(this)" style="font-size:.8rem;padding:6px 8px;width:100%;border:1.5px solid var(--border);border-radius:7px;background:var(--pbg);outline:none">'+
+      '<datalist id="'+dlId+'">'+opts+'</datalist>'+
+    '</div>'+
+    '<input class="ring-qty" type="number" value="'+(ingEntry?.qty||'')+'" placeholder="Qty" step="0.1" min="0" style="font-size:.8rem;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;background:var(--pbg);outline:none">'+
+    '<span class="ring-unit" style="font-size:.77rem;color:var(--muted);white-space:nowrap;padding:6px 4px">'+(info.unit?info.unit+' ('+info.pkgName+')':'selecione um ingrediente')+'</span>'+
+    '<button onclick="this.closest(\'.ring-row\').remove()" style="background:#FEECEC;border:none;border-radius:7px;padding:5px 7px;cursor:pointer;color:var(--red);font-size:.9rem">X</button>'+
+  '</div>';
+}
+
+// ── MUDANÇA 3: ingPicked preenche o hidden input ──
+function ingPicked(inputEl){
+  const val=inputEl.value.trim(),match=findIngByName(val);
+  if(!match)return;
+  const row=inputEl.closest('.ring-row');
+  const span=row?.querySelector('.ring-unit');
+  const hiddenId=row?.querySelector('.ring-id');
+  if(span)span.textContent=match.unit+' ('+match.pkgName+')';
+  if(hiddenId)hiddenId.value=match.id;
+}
+
 function addIngRow(){const list=document.getElementById('ring-list');if(!list)return;const tmp=document.createElement('template');tmp.innerHTML=makeIngRowHtml(null);list.appendChild(tmp.content.firstElementChild);}
 
 function openRecipeModal(prodId,p,rqtys,isNew){
@@ -1092,15 +1059,16 @@ function openRecipeModal(prodId,p,rqtys,isNew){
   document.getElementById('dm-body').innerHTML=(isNew?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div><label>Nome</label><input id="r-name" value="'+(p.name||'')+'" placeholder="Ex: Cheesecake" style="outline:none"></div><div><label>Emoji</label><input id="r-emoji" value="'+(p.emoji||'')+'" maxlength="4" style="font-size:1.3rem;outline:none"></div></div>':'')+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div><label>Preco de Venda (R$)</label><input id="r-price" type="number" value="'+(p.price||0)+'" step="0.01" style="outline:none"></div><div><label>Unidades por Lote</label><input id="r-lote" type="number" value="'+(lote||10)+'" min="1" style="outline:none"></div></div><div style="font-size:.78rem;font-weight:600;color:var(--b);margin-bottom:3px">Ingredientes - quantidade em unidades naturais por lote:</div><div style="font-size:.71rem;color:var(--muted);margin-bottom:8px;line-height:1.5">Ex: Torta usa 3 ovos, Brownie usa 9 ovos. O sistema calcula automaticamente que 3+9=12 ovos = 1 duzia. Os ingredientes precisam estar cadastrados em Compras - Registro de Ingredientes.</div><div style="display:grid;grid-template-columns:1fr 80px auto 34px;gap:5px;margin-bottom:5px"><span style="font-size:.71rem;color:var(--muted);font-weight:600">INGREDIENTE</span><span style="font-size:.71rem;color:var(--muted);font-weight:600">QTY</span><span style="font-size:.71rem;color:var(--muted);font-weight:600">UNIDADE (EMBALAGEM)</span><span></span></div><div id="ring-list">'+ingRows+'</div><button onclick="addIngRow()" style="background:var(--pp);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:.78rem;cursor:pointer;margin-bottom:12px;color:var(--pd)">+ Adicionar ingrediente</button><div style="display:flex;gap:7px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="closeDayBtn()">Cancelar</button><button class="btn btn-primary btn-sm" style="width:auto" onclick="saveRecipe(\''+(prodId||'')+'\','+isNew+')">Salvar</button></div>';
   document.getElementById('day-modal').classList.add('open');
 }
+
+// ── MUDANÇA 4: saveRecipe lê ring-id em vez de ring-name ──
 async function saveRecipe(prodId,isNew){
   const lote=parseInt(document.getElementById('r-lote')?.value)||10,price=parseFloat(document.getElementById('r-price')?.value)||0;
   const ings=[];
   document.querySelectorAll('#ring-list .ring-row').forEach(row=>{
-    const selEl=row.querySelector('.ring-name'),qtyEl=row.querySelector('.ring-qty');
-    if(!selEl||!selEl.value)return;
-    const ingId=selEl.value;
-    const reg=getIngReg();
-    if(!reg[ingId]){console.warn('Skipping ingredient not in registry:',ingId);return;}
+    const idEl=row.querySelector('.ring-id'),qtyEl=row.querySelector('.ring-qty');
+    if(!idEl||!idEl.value)return;
+    const ingId=idEl.value;
+    if(!getIngReg()[ingId])return;
     const qty=parseFloat(qtyEl?.value)||0;
     if(qty>0)ings.push({ingId,qty});
   });
@@ -1113,7 +1081,6 @@ async function saveRecipe(prodId,isNew){
 function renderParc(){const acc=document.getElementById('accordion');if(acc)acc.innerHTML=QS.map((cat,i)=>'<div class="acc-item"><button class="acc-head" onclick="tAcc('+i+')"><span>'+cat.cat+'</span><span id="ai-'+i+'">▼</span></button><div class="acc-body" id="ab-'+i+'">'+cat.qs.map(q=>'<li>❓ '+q+'</li>').join('')+'</div></div>').join('');let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';PF.forEach(f=>{const v=(state.profile[f.k]||'').replace(/"/g,'&quot;');if(f.area){html+='</div><div style="margin-bottom:10px"><label>'+f.l+'</label><textarea rows="3" id="pf-'+f.k+'" placeholder="'+f.ph+'" style="width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:9px;font-family:DM Sans,sans-serif;font-size:.87rem;resize:vertical;background:var(--pbg);color:var(--bd);outline:none">'+(state.profile[f.k]||'')+'</textarea></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';}else{html+='<div style="margin-bottom:10px"><label>'+f.l+'</label><input type="text" id="pf-'+f.k+'" placeholder="'+f.ph+'" value="'+v+'" style="outline:none"></div>';}});html+='</div>';const pf=document.getElementById('profile-form');if(pf)pf.innerHTML=html;}
 function tAcc(i){const b=document.getElementById('ab-'+i),ic=document.getElementById('ai-'+i);if(b){b.classList.toggle('open');if(ic)ic.textContent=b.classList.contains('open')?'▲':'▼';}}
 async function savePf(){const d={};PF.forEach(f=>{const el=document.getElementById('pf-'+f.k);if(el)d[f.k]=el.value;});state.profile=d;await fbSet('ab/profile',d);flash('pf-ok');}
-
 
 // ══ INGREDIENTES TAB ══
 function setIngFilter(f){
@@ -1128,7 +1095,7 @@ function setIngFilter(f){
 function renderIngredientes(){
   const tbody=document.getElementById('ing-full-list');if(!tbody)return;
   const hidden=state.hiddenIngs||[];
-  const reg=getIngReg(); // active (not hidden)
+  const reg=getIngReg();
   const allDefault=Object.values(DEFAULT_ING_REG);
   const allCustom=Object.values(state.ingReg);
   const hiddenItems=allDefault.filter(i=>hidden.includes(i.id));
@@ -1160,10 +1127,9 @@ function renderIngredientes(){
     if(isDefault&&!isHidden){tr+='<span style="font-size:.65rem;color:var(--muted)">só preço</span>';}
     tr+='</td></tr>';
     return tr;
-  };;
+  };
 
   tbody.innerHTML=items.length?items.map(mkRow).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">'+(ingFilter==='ocultos'?'Nenhum ingrediente oculto':'Nenhum ingrediente encontrado')+'</td></tr>';
-  // Attach button events after DOM insertion
   items.forEach(i=>{
     const sv=document.getElementById('irsave-'+i.id);if(sv)sv.onclick=()=>saveIngRow(i.id);
     const rm=document.getElementById('irrem-'+i.id);if(rm)rm.onclick=()=>removeIngFromReg(i.id);
@@ -1171,70 +1137,119 @@ function renderIngredientes(){
   });
 }
 
-// ══ FIADO TAB ══
+async function saveIngRow(id){
+  const unit=document.getElementById('ir-unit-'+id)?.value||'un',pkg=document.getElementById('ir-pkg-'+id)?.value||'',qty=parseFloat(document.getElementById('ir-qty-'+id)?.value)||1,price=parseFloat(document.getElementById('ir-price-'+id)?.value)||0;
+  const base=DEFAULT_ING_REG[id]||state.ingReg[id]||{id,name:id};
+  const updated={...base,unit,pkgName:pkg,pkgQty:qty,pkgPrice:price};
+  state.ingReg[id]=updated;await fbSet('ab/ingReg/'+id,updated);
+  state.prices[id]=price;await fbSet('ab/prices/'+id,price);
+  flash('ing-reg-ok');renderIngredientes();renderShop();
+}
+async function addIngToReg(){
+  const name=(document.getElementById('ir-new-name')?.value||'').trim(),unit=document.getElementById('ir-new-unit')?.value||'un',pkg=document.getElementById('ir-new-pkg')?.value||'',qty=parseFloat(document.getElementById('ir-new-qty')?.value)||1,price=parseFloat(document.getElementById('ir-new-price')?.value)||0;
+  if(!name){alert('Digite o nome.');return;}
+  if(findIngByName(name)){alert(name+' ja existe no registro.');return;}
+  const id='ing'+Date.now().toString().slice(-6);
+  const newIng={id,name,unit,pkgName:pkg,pkgQty:qty,pkgPrice:price};
+  state.ingReg[id]=newIng;await fbSet('ab/ingReg/'+id,newIng);state.prices[id]=price;await fbSet('ab/prices/'+id,price);
+  ['ir-new-name','ir-new-unit','ir-new-pkg'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  ['ir-new-qty','ir-new-price'].forEach(i=>{const el=document.getElementById(i);if(el)el.value=i.includes('qty')?'1':'0';});
+  flash('ing-reg-ok');renderIngredientes();
+}
+async function removeIngFromReg(id){
+  if(DEFAULT_ING_REG[id]){
+    // Hide default ingredient instead of removing
+    const h=[...(state.hiddenIngs||[])];if(!h.includes(id))h.push(id);
+    state.hiddenIngs=h;await fbSet('ab/hiddenIngs',h);
+  } else {
+    if(!confirm('Remover ingrediente personalizado?'))return;
+    delete state.ingReg[id];await fbRemove('ab/ingReg/'+id);
+  }
+  renderIngredientes();
+}
+async function restoreIngFromReg(id){
+  state.hiddenIngs=(state.hiddenIngs||[]).filter(x=>x!==id);
+  await fbSet('ab/hiddenIngs',state.hiddenIngs);
+  renderIngredientes();
+}
+
+// ── MUDANÇA 5: renderFiado corrigida ──
 function renderFiado(){
   const tx=txArr();
-  // Conferencia: ALL sales with customer name
   const vendas=tx.filter(t=>t.type==='venda'&&t.customer&&t.customer.trim()).sort((a,b)=>(a.customer||'').localeCompare(b.customer||'')||(b.ts||0)-(a.ts||0));
-
-  // Stats
   const totalAberto=vendas.filter(t=>!t.paid).reduce((a,t)=>a+t.amount,0);
   const totalPago=vendas.filter(t=>t.paid).reduce((a,t)=>a+t.amount,0);
   const pessoas=new Set(vendas.filter(t=>!t.paid).map(t=>t.customer)).size;
   document.getElementById('fiado-total').textContent=fmtR(totalAberto);
   document.getElementById('fiado-pessoas').textContent=pessoas;
   document.getElementById('fiado-recebido').textContent=fmtR(totalPago);
-
-  // Group by customer (all, paid and unpaid together)
   const byCustomer={};
-  vendas.forEach(t=>{if(!byCustomer[t.customer])byCustomer[t.customer]={txs:[],totalAberto:0,totalPago:0};byCustomer[t.customer].txs.push(t);if(t.paid)byCustomer[t.customer].totalPago+=t.amount;else byCustomer[t.customer].totalAberto+=t.amount;});
-
+  vendas.forEach(t=>{
+    if(!byCustomer[t.customer])byCustomer[t.customer]={txs:[],totalAberto:0,totalPago:0};
+    byCustomer[t.customer].txs.push(t);
+    if(t.paid)byCustomer[t.customer].totalPago+=t.amount;
+    else byCustomer[t.customer].totalAberto+=t.amount;
+  });
   const fl=document.getElementById('fiado-list');if(!fl)return;
-
+  const hist=document.getElementById('fiado-hist');
   if(!Object.keys(byCustomer).length){
-    fl.innerHTML='<div class="card" style="text-align:center;color:var(--muted);padding:24px">Nenhuma venda com nome de cliente ainda.<br><span style="font-size:.82rem">Ao registrar uma venda, preencha o campo "Cliente" para aparecer aqui.</span></div>';
-    const hist=document.getElementById('fiado-hist');if(hist)hist.style.display='none';
+    fl.innerHTML='<div class="card" style="text-align:center;color:var(--muted);padding:24px">Nenhuma venda com nome de cliente ainda.<br><span style="font-size:.82rem">Preencha o campo "Cliente" ao registrar uma venda para aparecer aqui.</span></div>';
+    if(hist){hist.style.display='';hist.innerHTML='<div style="color:var(--muted);font-size:.83rem;padding:8px">Nenhum pagamento registrado ainda.</div>';}
     return;
   }
-
-  fl.innerHTML=Object.entries(byCustomer).sort((a,b)=>a[0].localeCompare(b[0])).map(([nome,data])=>{
+  const pendingEntries=Object.entries(byCustomer).filter(([,d])=>d.totalAberto>0).sort((a,b)=>a[0].localeCompare(b[0]));
+  const paidEntries=Object.entries(byCustomer).filter(([,d])=>d.totalAberto===0).sort((a,b)=>a[0].localeCompare(b[0]));
+  let pendingHTML='';
+  pendingEntries.forEach(([nome,data],ci)=>{
     const {txs,totalAberto,totalPago}=data;
-    const temAberto=totalAberto>0;
-    const borderClr=temAberto?'var(--red)':'var(--green)';
-    const rows=txs.map(t=>{
+    let rows='';
+    txs.forEach(t=>{
       const isPago=!!t.paid;
-      const itemDesc=t.desc.replace(' | '+nome,'').replace(' - '+nome,'');
-      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">' +
-        '<span style="font-size:1.1rem;min-width:22px;text-align:center">'+(isPago?'✅':'⬜')+'</span>'+
+      const itemDesc=(t.desc||'').replace(' | '+nome,'').replace(' - '+nome,'');
+      rows+='<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">'+
+        '<span id="icon-'+t._key+'" style="font-size:1.2rem;min-width:24px;text-align:center;cursor:'+(isPago?'default':'pointer')+';user-select:none" title="'+(isPago?'Pago':'Clique para marcar como pago')+'">'+(isPago?'✅':'⬜')+'</span>'+
         '<div style="flex:1"><div style="font-size:.83rem;color:var(--bd)">'+itemDesc+'</div><div style="font-size:.71rem;color:var(--muted)">'+t.date+(isPago&&t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div>'+
         '<span style="font-weight:700;font-size:.88rem;color:'+(isPago?'var(--green)':'var(--red)')+'">'+fmtR(t.amount)+'</span>'+
-        (!isPago?'<button id="fpago1-'+t._key+'" style="background:var(--green);border:none;border-radius:7px;padding:4px 9px;font-size:.75rem;cursor:pointer;color:#fff">Pago</button>':'')+
+        (!isPago?'<button id="fpago-'+t._key+'" style="background:var(--green);border:none;border-radius:7px;padding:4px 9px;font-size:.75rem;cursor:pointer;color:#fff;white-space:nowrap">✅ Pago</button>':'')+
       '</div>';
-    }).join('');
-    return '<div class="card" style="border-left:4px solid '+borderClr+';margin-bottom:12px">'+
-      '<div class="card-title" style="margin-bottom:6px">'+
-        '<span style="font-size:1.2rem">👤</span> <b>'+nome+'</b>'+
-        '<div style="margin-left:auto;text-align:right">'+
-          (totalAberto>0?'<div style="font-size:.85rem;color:var(--red);font-weight:700">Deve: '+fmtR(totalAberto)+'</div>':'')+
-          (totalPago>0?'<div style="font-size:.78rem;color:var(--green)">Pago: '+fmtR(totalPago)+'</div>':'')+
-        '</div>'+
-      '</div>'+
+    });
+    pendingHTML+='<div class="card" style="border-left:4px solid var(--red);margin-bottom:12px">'+
+      '<div class="card-title" style="margin-bottom:6px"><span style="font-size:1.2rem">👤</span> <b>'+nome+'</b>'+
+      '<div style="margin-left:auto;text-align:right">'+
+        (totalAberto>0?'<div style="font-size:.85rem;color:var(--red);font-weight:700">Deve: '+fmtR(totalAberto)+'</div>':'')+
+        (totalPago>0?'<div style="font-size:.78rem;color:var(--green)">Já pagou: '+fmtR(totalPago)+'</div>':'')+
+      '</div></div>'+
       rows+
-      (temAberto?'<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button id="fpagoall-'+encodeURIComponent(nome)+'" class="btn btn-primary btn-sm" style="width:auto;background:var(--green)">✅ Marcar tudo como Pago</button></div>':'')+
-    '</div>';
-  }).join('');
-
-  // Attach events
-  Object.entries(byCustomer).forEach(([nome,data])=>{
-    const btnAll=document.getElementById('fpagoall-'+encodeURIComponent(nome));
+      '<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">'+
+        '<button id="fpagoall-'+ci+'" class="btn btn-primary btn-sm" style="width:auto;background:var(--green)">✅ Marcar tudo como Pago</button>'+
+      '</div></div>';
+  });
+  fl.innerHTML=pendingEntries.length?pendingHTML:'<div class="card" style="text-align:center;color:var(--green);padding:24px;font-weight:600">🎉 Nenhuma pendência! Todos os clientes em dia.</div>';
+  pendingEntries.forEach(([nome,data],ci)=>{
+    const btnAll=document.getElementById('fpagoall-'+ci);
     if(btnAll)btnAll.onclick=()=>marcarPago(data.txs.filter(t=>!t.paid).map(t=>t._key));
     data.txs.filter(t=>!t.paid).forEach(t=>{
-      const btn=document.getElementById('fpago1-'+t._key);
+      const btn=document.getElementById('fpago-'+t._key);
       if(btn)btn.onclick=()=>marcarPago([t._key]);
+      const icon=document.getElementById('icon-'+t._key);
+      if(icon)icon.onclick=()=>marcarPago([t._key]);
     });
   });
-
-  const hist=document.getElementById('fiado-hist');if(hist)hist.style.display='none';
+  if(hist){
+    hist.style.display='';
+    if(paidEntries.length){
+      hist.innerHTML=paidEntries.map(([nome,data])=>{
+        const rows=data.txs.map(t=>'<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)">'+
+          '<span style="font-size:1.1rem">✅</span>'+
+          '<div style="flex:1"><div style="font-size:.81rem;color:var(--muted)">'+(t.desc||'').replace(' | '+nome,'')+'</div>'+
+          '<div style="font-size:.69rem;color:var(--muted)">'+t.date+(t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div>'+
+          '<span style="font-weight:600;font-size:.85rem;color:var(--green)">'+fmtR(t.amount)+'</span></div>').join('');
+        return '<div style="margin-bottom:12px"><div style="font-weight:700;font-size:.85rem;color:var(--bd);margin-bottom:4px">👤 '+nome+'</div>'+rows+'</div>';
+      }).join('');
+    }else{
+      hist.innerHTML='<div style="color:var(--muted);font-size:.83rem;padding:8px">Nenhum cliente totalmente quitado ainda.</div>';
+    }
+  }
 }
 
 async function marcarPago(keys){
@@ -1248,19 +1263,8 @@ async function marcarPago(keys){
   rerender();
 }
 
-async function marcarPagoParcial(keys,nome){
-  const val=parseFloat(prompt('Quanto '+nome+' vai pagar agora? (R$)'));
-  if(!val||isNaN(val))return;
-  // Register as a negative fiado (payment) - just mark first transaction as paid proportionally
-  // Simple: mark all as paid but register the amount received
-  await fbPush('ab/transactions',{type:'venda',date:today(),amount:0,desc:'Abatimento fiado - '+nome+' (R$'+val.toFixed(2)+')',customer:nome,paid:true,paidDate:today(),paidTs:Date.now(),items:[],ts:Date.now()});
-  alert('Abatimento de '+fmtR(val)+' registrado para '+nome+'. Acerte o saldo restante manualmente.');
-  rerender();
-}
-
 // ══ BOOT ══
 (function boot(){const savedUrl=lsl('ab_dburl',null);if(savedUrl){DB_URL=savedUrl;initApp();}else{hideLoading();showScreen('firebase');}})();
-
 </script>
 </body>
 </html>
