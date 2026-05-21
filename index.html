@@ -811,7 +811,9 @@ function showTab(t){currentTab=t;TABS.forEach(id=>document.getElementById('tab-'
 function showPTab(t){['perguntas','ficha'].forEach(id=>{document.getElementById('ptab-'+id).classList.toggle('hidden',id!==t);document.getElementById('pt-'+id).className=id===t?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';});}
 
 // ══ HELPERS ══
-function toIso(d){return d.toISOString().slice(0,10);}function today(){return toIso(new Date());}function fmtR(v){return 'R$'+Number(v||0).toFixed(2).replace('.',',');}
+function toIso(d){return d.toISOString().slice(0,10);}
+function today(){return new Date().toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});}
+function fmtR(v){return 'R$'+Number(v||0).toFixed(2).replace('.',',');}
 function txArr(){return Object.values(state.transactions).filter(v=>v&&v.type);}
 function weekDays(ref){const d=new Date(ref+'T12:00:00'),dow=d.getDay(),mon=new Date(d);mon.setDate(d.getDate()-dow);return Array.from({length:7},(_,i)=>{const dd=new Date(mon);dd.setDate(mon.getDate()+i);return toIso(dd);});}
 function weekLabel(ref){const days=weekDays(ref),f=new Date(days[0]+'T12:00:00'),l=new Date(days[6]+'T12:00:00');return f.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})+' - '+l.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});}
