@@ -256,6 +256,7 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
     <button onclick="showTab('cronograma')">📅 Cronograma</button>
     <button onclick="showTab('compras')">🛒 Compras</button>
     <button onclick="showTab('estoque')">📦 Estoque</button>
+    <button onclick="showTab('embalagens')">🎁 Embalagens</button>
     <button onclick="showTab('ingredientes')">🧂 Ingredientes</button>
     <button onclick="showTab('fiado')">🧾 Clientes</button>
     <button onclick="showTab('financeiro')">💰 Financeiro</button>
@@ -476,8 +477,58 @@ main{padding:16px 20px 40px;max-width:1100px;width:100%;margin:0 auto;box-sizing
     <div id="receitas-body"></div>
   </div>
 
-  <div id="tab-ingredientes" class="hidden">
-    <div class="sec-title">🧂 Ingredientes</div>
+  <div id="tab-embalagens" class="hidden">
+    <div class="sec-title">🎁 Embalagens</div>
+    <div class="sec-sub">Estoque de embalagens vinculado à produção</div>
+    <div class="grid3" style="margin-bottom:14px">
+      <div class="stat"><div class="val" id="emb-total">0</div><div class="lbl">Tipos Cadastrados</div></div>
+      <div class="stat"><div class="val" id="emb-valor">R$0</div><div class="lbl">Valor em Estoque</div></div>
+      <div class="stat"><div class="val" id="emb-baixo">0</div><div class="lbl">Estoque Baixo</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Embalagens em Estoque</div>
+      <div id="emb-list"><div style="text-align:center;color:var(--muted);font-size:.83rem;padding:20px">Nenhuma embalagem cadastrada ainda.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">➕ Cadastrar Embalagem</div>
+      <div class="form-row">
+        <div class="field"><label>Nome</label><input id="emb-new-name" placeholder="Ex: Caixa G-650" style="outline:none"></div>
+        <div class="field"><label>Custo por unidade (R$)</label><input type="number" id="emb-new-custo" value="0" step="0.01" style="outline:none"></div>
+      </div>
+      <div class="field"><label>Estoque inicial</label><input type="number" id="emb-new-estoque" value="0" min="0" style="outline:none"></div>
+      <div style="font-size:.77rem;font-weight:600;color:var(--b);margin-bottom:6px;margin-top:4px">Quais produtos usam esta embalagem?</div>
+      <div id="emb-uso-list"></div>
+      <button onclick="addEmbUsoRow()" class="btn btn-ghost btn-sm" style="width:auto;margin-bottom:12px">+ Adicionar produto</button>
+      <br>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="addEmbalagem()">➕ Cadastrar</button>
+      <div id="emb-new-ok" class="hidden" style="margin-top:7px;font-size:.81rem;color:var(--green);font-weight:600">✅ Embalagem cadastrada!</div>
+    </div>
+    <div class="card" style="border:2px solid var(--p)">
+      <div class="card-title">🏭 Registrar Produção</div>
+      <div class="alert alert-info" style="font-size:.79rem">Informe o que foi produzido — o sistema desconta automaticamente das embalagens vinculadas.</div>
+      <div id="emb-prod-rows"></div>
+      <button onclick="addEmbProdRow()" class="btn btn-ghost btn-sm" style="width:auto;margin-bottom:12px">+ Adicionar produto</button>
+      <br>
+      <div id="emb-prod-preview" style="font-size:.81rem;color:var(--muted);margin-bottom:10px"></div>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="registrarProducaoEmb()">✅ Registrar Produção</button>
+      <div id="emb-prod-ok" class="hidden" style="margin-top:7px;font-size:.81rem;color:var(--green);font-weight:600">✅ Produção registrada!</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🛒 Registrar Compra de Embalagens</div>
+      <div class="form-row">
+        <div class="field"><label>Embalagem</label><select id="emb-compra-sel" style="outline:none"><option value="">-- Selecionar --</option></select></div>
+        <div class="field"><label>Quantidade</label><input type="number" id="emb-compra-qty" value="0" min="1" style="outline:none"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Custo total (R$)</label><input type="number" id="emb-compra-custo" value="0" step="0.01" style="outline:none"></div>
+        <div class="field"><label>Data</label><input type="date" id="emb-compra-data" style="outline:none"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="comprarEmbalagem()">💸 Registrar Compra</button>
+      <div id="emb-compra-ok" class="hidden" style="margin-top:7px;font-size:.81rem;color:var(--green);font-weight:600">✅ Compra registrada!</div>
+    </div>
+  </div>
+
+  <div id="tab-ingredientes" class="hidden">    <div class="sec-title">🧂 Ingredientes</div>
     <div class="sec-sub">Cadastre e gerencie todos os ingredientes — padrão e personalizados</div>
     <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" id="ingf-todos" onclick="setIngFilter('todos')">Todos</button>
@@ -600,7 +651,7 @@ const PF=[{k:"nome",l:"Nome do Negócio",ph:"Ex: Aurora Bites"},{k:"slogan",l:"S
 
 // ══ STATE ══
 let DB_URL='';
-let state={users:null,transactions:{},schedule:{},prices:{},profile:{},recipeQtys:{},customProds:{},hiddenDefaults:[],estoque:{},prodPrices:{},ingReg:{},hiddenIngs:[]};
+let state={users:null,transactions:{},schedule:{},prices:{},profile:{},recipeQtys:{},customProds:{},hiddenDefaults:[],estoque:{},prodPrices:{},ingReg:{},hiddenIngs:[],embalagens:{}};
 let sseConn=null,dayEdits={},shopChecked={},vrCart={},ingFilter='todos';
 let _dlId=0;
 
@@ -705,6 +756,7 @@ function loadStateFromObj(nd){
   state.recipeQtys=nd.recipeQtys||{};state.customProds=nd.customProds||{};
   state.hiddenDefaults=nd.hiddenDefaults||[];state.estoque=nd.estoque||{};
   state.prodPrices=nd.prodPrices||{};state.ingReg=nd.ingReg||{};state.hiddenIngs=nd.hiddenIngs||[];
+  state.embalagens=nd.embalagens||{};
 }
 function applyPatch(path,data){
   const pts=path.split('/').filter(Boolean);if(!pts.length)return;const r=pts[0];
@@ -720,6 +772,7 @@ function applyPatch(path,data){
   else if(r==='prodPrices'){if(pts.length===1)state.prodPrices=data||{};else{if(data===null)delete state.prodPrices[pts[1]];else state.prodPrices[pts[1]]=data;}}
   else if(r==='ingReg'){if(pts.length===1)state.ingReg=data||{};else{if(data===null)delete state.ingReg[pts[1]];else state.ingReg[pts[1]]=data;}}
   else if(r==='hiddenIngs')state.hiddenIngs=data||[];
+  else if(r==='embalagens'){if(pts.length===1)state.embalagens=data||{};else{if(data===null)delete state.embalagens[pts[1]];else state.embalagens[pts[1]]=data;}}
 }
 function startSSE(){
   if(sseConn){try{sseConn.close();}catch(e){}}
@@ -733,6 +786,7 @@ function startSSE(){
 function rerender(){
   if(currentTab==='dashboard')renderDash();if(currentTab==='cronograma')renderWeek();
   if(currentTab==='compras')renderShop();if(currentTab==='estoque')renderEstoque();
+  if(currentTab==='embalagens')renderEmbalagens();
   if(currentTab==='ingredientes')renderIngredientes();if(currentTab==='fiado')renderFiado();
   if(currentTab==='financeiro')renderFin();if(currentTab==='receitas')renderReceitas();
   if(currentTab==='parceria')renderParc();
@@ -806,7 +860,7 @@ function updLabels(){if(!state.users)return;const n0=state.users[0].emoji+' '+st
 function logout(){currentUser=null;selUser=null;pinBuf='';showScreen('login');showPanel('choose-panel');}
 
 // ══ TABS ══
-const TABS=['dashboard','cronograma','compras','estoque','ingredientes','fiado','financeiro','receitas','parceria'];
+const TABS=['dashboard','cronograma','compras','estoque','embalagens','ingredientes','fiado','financeiro','receitas','parceria'];
 function showTab(t){currentTab=t;TABS.forEach(id=>document.getElementById('tab-'+id).classList.toggle('hidden',id!==t));document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',TABS[i]===t));rerender();}
 function showPTab(t){['perguntas','ficha'].forEach(id=>{document.getElementById('ptab-'+id).classList.toggle('hidden',id!==t);document.getElementById('pt-'+id).className=id===t?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';});}
 
@@ -1409,6 +1463,179 @@ async function desmarcarPago(key){
 }
 
 // ══ BOOT ══
+// ══ EMBALAGENS ══
+let embUsoRows=[],embProdRows=[];
+
+function renderEmbalagens(){
+  const embs=Object.values(state.embalagens),prods=getProds();
+  // Stats
+  const totalValor=embs.reduce((a,e)=>a+(e.estoque||0)*(e.custo||0),0);
+  const baixo=embs.filter(e=>(e.estoque||0)<20).length;
+  document.getElementById('emb-total').textContent=embs.length;
+  document.getElementById('emb-valor').textContent=fmtR(totalValor);
+  document.getElementById('emb-baixo').textContent=baixo;
+  // List
+  const list=document.getElementById('emb-list');
+  if(list){
+    if(!embs.length){list.innerHTML='<div style="text-align:center;color:var(--muted);font-size:.83rem;padding:20px">Nenhuma embalagem cadastrada ainda.</div>';}
+    else{
+      list.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Nome</th><th>Estoque</th><th>Custo/un</th><th>Valor</th><th>Usada em</th><th>Ações</th></tr></thead><tbody>'+
+      embs.sort((a,b)=>a.name.localeCompare(b.name)).map(e=>{
+        const est=e.estoque||0,val=est*(e.custo||0);
+        const clr=est<=0?'var(--red)':est<20?'#C4950A':'var(--green)';
+        const pills=(e.usos||[]).map(u=>prods[u.prodId]?'<span class="c-pill">'+prods[u.prodId].emoji+' '+prods[u.prodId].name+' ('+u.qty+'×)</span>':'').join(' ');
+        return '<tr>'+
+          '<td><b>'+e.name+'</b></td>'+
+          '<td><div style="display:flex;align-items:center;gap:6px">'+
+            '<button onclick="adjEmb(\''+e.id+'\',-1)" style="width:24px;height:24px;border:1px solid var(--border);background:var(--pp);border-radius:5px;cursor:pointer;font-size:.8rem">-</button>'+
+            '<span style="font-weight:700;color:'+clr+';min-width:32px;text-align:center">'+est+'</span>'+
+            '<button onclick="adjEmb(\''+e.id+'\',1)" style="width:24px;height:24px;border:1px solid var(--border);background:var(--pp);border-radius:5px;cursor:pointer;font-size:.8rem">+</button>'+
+          '</div></td>'+
+          '<td>'+fmtR(e.custo||0)+'</td>'+
+          '<td>'+fmtR(val)+'</td>'+
+          '<td style="font-size:.78rem">'+(pills||'<span style="color:var(--muted)">—</span>')+'</td>'+
+          '<td><button onclick="deleteEmbalagem(\''+e.id+'\')" style="background:#FEECEC;border:none;border-radius:7px;padding:3px 7px;font-size:.77rem;cursor:pointer;color:var(--red)">🗑</button></td>'+
+        '</tr>';
+      }).join('')+'</tbody></table></div>';
+    }
+  }
+  // Populate compra select
+  const sel=document.getElementById('emb-compra-sel');
+  if(sel){sel.innerHTML='<option value="">-- Selecionar --</option>'+embs.sort((a,b)=>a.name.localeCompare(b.name)).map(e=>'<option value="'+e.id+'">'+e.name+'</option>').join('');}
+  // Populate compra data default
+  const cd=document.getElementById('emb-compra-data');if(cd&&!cd.value)cd.value=today();
+  // Render uso rows for new embalagem form
+  renderEmbUsoRows();
+  // Render prod rows
+  renderEmbProdRows();
+}
+
+function renderEmbUsoRows(){
+  const prods=getProds(),container=document.getElementById('emb-uso-list');if(!container)return;
+  if(!embUsoRows.length){container.innerHTML='<div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Nenhum produto adicionado ainda.</div>';return;}
+  container.innerHTML=embUsoRows.map((row,i)=>{
+    const opts=Object.entries(prods).map(([k,p])=>'<option value="'+k+'"'+(row.prodId===k?' selected':'')+'>'+p.emoji+' '+p.name+'</option>').join('');
+    return '<div style="display:grid;grid-template-columns:1fr 100px 32px;gap:7px;margin-bottom:7px;align-items:center">'+
+      '<select id="eu-prod-'+i+'" style="font-size:.82rem;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--pbg);outline:none">'+opts+'</select>'+
+      '<div style="display:flex;align-items:center;gap:4px"><input id="eu-qty-'+i+'" type="number" value="'+(row.qty||1)+'" min="0.1" step="0.1" style="width:60px;font-size:.82rem;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--pbg);outline:none"><span style="font-size:.72rem;color:var(--muted)">por un.</span></div>'+
+      '<button onclick="removeEmbUsoRow('+i+')" style="width:30px;height:30px;border:none;background:#FEECEC;border-radius:8px;cursor:pointer;color:var(--red)">×</button>'+
+    '</div>';
+  }).join('');
+  embUsoRows.forEach((_,i)=>{
+    const sel=document.getElementById('eu-prod-'+i),qty=document.getElementById('eu-qty-'+i);
+    if(sel)sel.onchange=()=>{embUsoRows[i].prodId=sel.value;};
+    if(qty)qty.oninput=()=>{embUsoRows[i].qty=parseFloat(qty.value)||1;};
+  });
+}
+
+function addEmbUsoRow(){const prods=getProds();embUsoRows.push({prodId:Object.keys(prods)[0]||'',qty:1});renderEmbUsoRows();}
+function removeEmbUsoRow(i){embUsoRows.splice(i,1);renderEmbUsoRows();}
+
+function renderEmbProdRows(){
+  const prods=getProds(),container=document.getElementById('emb-prod-rows');if(!container)return;
+  if(!embProdRows.length)embProdRows=[{prodId:Object.keys(prods)[0]||'',qty:1}];
+  container.innerHTML=embProdRows.map((row,i)=>{
+    const opts=Object.entries(prods).map(([k,p])=>'<option value="'+k+'"'+(row.prodId===k?' selected':'')+'>'+p.emoji+' '+p.name+'</option>').join('');
+    return '<div style="display:grid;grid-template-columns:1fr 100px 32px;gap:7px;margin-bottom:7px;align-items:center">'+
+      '<select id="ep-prod-'+i+'" style="font-size:.82rem;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--pbg);outline:none">'+opts+'</select>'+
+      '<div style="display:flex;align-items:center;gap:4px"><input id="ep-qty-'+i+'" type="number" value="'+(row.qty||1)+'" min="1" style="width:60px;font-size:.82rem;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--pbg);outline:none"><span style="font-size:.72rem;color:var(--muted)">unid.</span></div>'+
+      '<button onclick="removeEmbProdRow('+i+')" style="width:30px;height:30px;border:none;background:#FEECEC;border-radius:8px;cursor:pointer;color:var(--red)">×</button>'+
+    '</div>';
+  }).join('');
+  embProdRows.forEach((_,i)=>{
+    const sel=document.getElementById('ep-prod-'+i),qty=document.getElementById('ep-qty-'+i);
+    if(sel)sel.onchange=()=>{embProdRows[i].prodId=sel.value;updEmbProdPreview();};
+    if(qty)qty.oninput=()=>{embProdRows[i].qty=parseInt(qty.value)||1;updEmbProdPreview();};
+  });
+  updEmbProdPreview();
+}
+
+function addEmbProdRow(){const prods=getProds();embProdRows.push({prodId:Object.keys(prods)[0]||'',qty:1});renderEmbProdRows();}
+function removeEmbProdRow(i){if(embProdRows.length>1){embProdRows.splice(i,1);renderEmbProdRows();}}
+
+function updEmbProdPreview(){
+  const preview=document.getElementById('emb-prod-preview');if(!preview)return;
+  const prods=getProds(),embs=Object.values(state.embalagens);
+  const desconto={};
+  embProdRows.forEach(row=>{
+    if(!row.qty||!prods[row.prodId])return;
+    embs.forEach(e=>{
+      const uso=(e.usos||[]).find(u=>u.prodId===row.prodId);
+      if(uso)desconto[e.id]=(desconto[e.id]||0)+uso.qty*row.qty;
+    });
+  });
+  const lines=Object.entries(desconto).map(([id,qty])=>{const e=state.embalagens[id];return e?'• '+e.name+': −'+qty+' un. (estoque atual: '+(e.estoque||0)+')':''}).filter(Boolean);
+  preview.innerHTML=lines.length?'<b style="color:var(--bd)">Vai descontar:</b><br>'+lines.join('<br>'):'<span style="color:var(--muted)">Nenhuma embalagem vinculada aos produtos selecionados.</span>';
+}
+
+async function addEmbalagem(){
+  const name=(document.getElementById('emb-new-name')?.value||'').trim();
+  const custo=parseFloat(document.getElementById('emb-new-custo')?.value)||0;
+  const estoque=parseInt(document.getElementById('emb-new-estoque')?.value)||0;
+  if(!name){alert('Digite o nome da embalagem.');return;}
+  const usos=embUsoRows.filter(r=>r.prodId&&r.qty>0).map(r=>({prodId:r.prodId,qty:r.qty}));
+  const id='emb'+Date.now();
+  const nova={id,name,custo,estoque,usos};
+  state.embalagens[id]=nova;await fbSet('ab/embalagens/'+id,nova);
+  document.getElementById('emb-new-name').value='';
+  document.getElementById('emb-new-custo').value='0';
+  document.getElementById('emb-new-estoque').value='0';
+  embUsoRows=[];renderEmbUsoRows();
+  flash('emb-new-ok');renderEmbalagens();
+}
+
+async function adjEmb(id,delta){
+  const e=state.embalagens[id];if(!e)return;
+  const newQty=Math.max(0,(e.estoque||0)+delta);
+  state.embalagens[id]={...e,estoque:newQty};
+  await fbSet('ab/embalagens/'+id,state.embalagens[id]);renderEmbalagens();
+}
+
+async function deleteEmbalagem(id){
+  showConfirm({icon:'🗑',msg:'Excluir esta embalagem permanentemente?',okLabel:'Excluir',okClass:'cbtn-danger',onOk:async()=>{delete state.embalagens[id];await fbRemove('ab/embalagens/'+id);renderEmbalagens();}});
+}
+
+async function registrarProducaoEmb(){
+  const prods=getProds(),embs=Object.values(state.embalagens);
+  const desconto={};
+  embProdRows.forEach(row=>{
+    if(!row.qty||!prods[row.prodId])return;
+    embs.forEach(e=>{
+      const uso=(e.usos||[]).find(u=>u.prodId===row.prodId);
+      if(uso)desconto[e.id]=(desconto[e.id]||0)+uso.qty*row.qty;
+    });
+  });
+  if(!Object.keys(desconto).length){alert('Nenhuma embalagem vinculada aos produtos selecionados.');return;}
+  const desc=embProdRows.filter(r=>prods[r.prodId]).map(r=>prods[r.prodId].emoji+' '+r.qty+'× '+prods[r.prodId].name).join(', ');
+  const lines=Object.entries(desconto).map(([id,qty])=>{const e=state.embalagens[id];return e?'• '+e.name+': −'+qty+' un.':''}).filter(Boolean).join('<br>');
+  showConfirm({icon:'🏭',msg:'Registrar produção de <b>'+desc+'</b>?<br><br>'+lines,okLabel:'Confirmar',okClass:'cbtn-ok',onOk:async()=>{
+    for(const [id,qty] of Object.entries(desconto)){
+      const e=state.embalagens[id];if(!e)continue;
+      const updated={...e,estoque:Math.max(0,(e.estoque||0)-qty)};
+      state.embalagens[id]=updated;await fbSet('ab/embalagens/'+id,updated);
+    }
+    embProdRows=[{prodId:Object.keys(getProds())[0]||'',qty:1}];
+    flash('emb-prod-ok');renderEmbalagens();
+  }});
+}
+
+async function comprarEmbalagem(){
+  const id=document.getElementById('emb-compra-sel')?.value;
+  const qty=parseInt(document.getElementById('emb-compra-qty')?.value)||0;
+  const custo=parseFloat(document.getElementById('emb-compra-custo')?.value)||0;
+  const data=document.getElementById('emb-compra-data')?.value||today();
+  if(!id){alert('Selecione uma embalagem.');return;}
+  if(qty<=0){alert('Informe a quantidade.');return;}
+  const e=state.embalagens[id];if(!e)return;
+  const updated={...e,estoque:(e.estoque||0)+qty};
+  state.embalagens[id]=updated;await fbSet('ab/embalagens/'+id,updated);
+  if(custo>0){await fbPush('ab/transactions',{type:'despesa',date:data,amount:custo,desc:'🎁 Embalagens: '+qty+'× '+e.name,ts:Date.now()});}
+  document.getElementById('emb-compra-sel').value='';
+  document.getElementById('emb-compra-qty').value='0';
+  document.getElementById('emb-compra-custo').value='0';
+  flash('emb-compra-ok');renderEmbalagens();
+}
+
 (function boot(){const savedUrl=lsl('ab_dburl',null);if(savedUrl){DB_URL=savedUrl;initApp();}else{hideLoading();showScreen('firebase');}})();
 </script>
 </body>
