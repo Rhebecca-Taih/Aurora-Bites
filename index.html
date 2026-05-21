@@ -1207,7 +1207,11 @@ async function restoreIngFromReg(id){
   renderIngredientes();
 }
 
-// ── renderFiado: confirm modal + desmarcar ──
+// Wrappers globais para onclick inline
+function _fIconClick(key,isPago,amount,nome){if(isPago){showConfirm({icon:'↩️',msg:'Desmarcar pagamento de <b>'+fmtR(amount)+'</b> de <b>'+nome+'</b>?',okLabel:'Desmarcar',okClass:'cbtn-danger',onOk:()=>desmarcarPago(key)});}else{showConfirm({icon:'✅',msg:'Marcar venda de <b>'+fmtR(amount)+'</b> como paga?',okLabel:'Confirmar Pagamento',okClass:'cbtn-green',onOk:()=>marcarPago([key])});}}
+function _fPagoAll(nome,keysJson){const keys=JSON.parse(keysJson);showConfirm({icon:'✅',msg:'Marcar <b>todas as vendas</b> de <b>'+nome+'</b> como pagas?',okLabel:'Marcar como Pago',okClass:'cbtn-green',onOk:()=>marcarPago(keys)});}
+function _fHistIcon(key,amount,nome){showConfirm({icon:'↩️',msg:'Desmarcar pagamento de <b>'+fmtR(amount)+'</b> de <b>'+nome+'</b>?',okLabel:'Desmarcar',okClass:'cbtn-danger',onOk:()=>desmarcarPago(key)});}
+
 function renderFiado(){
   const tx=txArr();
   const vendas=tx.filter(t=>t.type==='venda'&&t.customer&&t.customer.trim()).sort((a,b)=>(a.customer||'').localeCompare(b.customer||'')||(b.ts||0)-(a.ts||0));
@@ -1233,11 +1237,12 @@ function renderFiado(){
     const {txs,totalAberto,totalPago}=data;let rows='';
     txs.forEach(t=>{
       const isPago=!!t.paid,itemDesc=(t.desc||'').replace(' | '+nome,'').replace(' - '+nome,'');
+      const safeNome=nome.replace(/'/g,"\\'");
       rows+='<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">'+
-        '<span id="icon-'+t._key+'" style="font-size:1.2rem;min-width:24px;text-align:center;cursor:pointer;user-select:none" title="'+(isPago?'Clique para desmarcar':'Clique para marcar como pago')+'">'+(isPago?'✅':'⬜')+'</span>'+
+        '<span onclick="_fIconClick(\''+t._key+'\','+isPago+','+t.amount+',\''+safeNome+'\')" style="font-size:1.2rem;min-width:24px;text-align:center;cursor:pointer;user-select:none" title="'+(isPago?'Clique para desmarcar':'Clique para marcar como pago')+'">'+(isPago?'✅':'⬜')+'</span>'+
         '<div style="flex:1"><div style="font-size:.83rem;color:var(--bd)">'+itemDesc+'</div><div style="font-size:.71rem;color:var(--muted)">'+t.date+(isPago&&t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div>'+
         '<span style="font-weight:700;font-size:.88rem;color:'+(isPago?'var(--green)':'var(--red)')+'">'+fmtR(t.amount)+'</span>'+
-        (!isPago?'<button id="fpago-'+t._key+'" style="background:var(--green);border:none;border-radius:7px;padding:4px 9px;font-size:.75rem;cursor:pointer;color:#fff;white-space:nowrap">✅ Pago</button>':'')+
+        (!isPago?'<button onclick="_fIconClick(\''+t._key+'\',false,'+t.amount+',\''+safeNome+'\')" style="background:var(--green);border:none;border-radius:7px;padding:4px 9px;font-size:.75rem;cursor:pointer;color:#fff;white-space:nowrap">✅ Pago</button>':'')+
       '</div>';
     });
     pendingHTML+='<div class="card" style="border-left:4px solid var(--red);margin-bottom:12px">'+
@@ -1246,30 +1251,17 @@ function renderFiado(){
         (totalAberto>0?'<div style="font-size:.85rem;color:var(--red);font-weight:700">Deve: '+fmtR(totalAberto)+'</div>':'')+
         (totalPago>0?'<div style="font-size:.78rem;color:var(--green)">Já pagou: '+fmtR(totalPago)+'</div>':'')+
       '</div></div>'+rows+
-      '<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button id="fpagoall-'+ci+'" class="btn btn-primary btn-sm" style="width:auto;background:var(--green)">✅ Marcar tudo como Pago</button></div></div>';
+      '<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button onclick="_fPagoAll(\''+nome.replace(/'/g,"\\'")+'\',\''+JSON.stringify(data.txs.filter(t=>!t.paid).map(t=>t._key)).replace(/'/g,"\\'")+'\');" class="btn btn-primary btn-sm" style="width:auto;background:var(--green)">✅ Marcar tudo como Pago</button></div></div>';
   });
   fl.innerHTML=pendingEntries.length?pendingHTML:'<div class="card" style="text-align:center;color:var(--green);padding:24px;font-weight:600">🎉 Nenhuma pendência! Todos os clientes em dia.</div>';
-  pendingEntries.forEach(([nome,data],ci)=>{
-    const btnAll=document.getElementById('fpagoall-'+ci);
-    if(btnAll)btnAll.onclick=()=>showConfirm({icon:'✅',msg:'Marcar <b>todas as vendas</b> de <b>'+nome+'</b> como pagas?',okLabel:'Marcar como Pago',okClass:'cbtn-green',onOk:()=>marcarPago(data.txs.filter(t=>!t.paid).map(t=>t._key))});
-    data.txs.forEach(t=>{
-      const btn=document.getElementById('fpago-'+t._key);
-      if(btn)btn.onclick=()=>showConfirm({icon:'✅',msg:'Marcar venda de <b>'+fmtR(t.amount)+'</b> como paga?',okLabel:'Confirmar Pagamento',okClass:'cbtn-green',onOk:()=>marcarPago([t._key])});
-      const icon=document.getElementById('icon-'+t._key);
-      if(icon){
-        if(t.paid){icon.onclick=()=>showConfirm({icon:'↩️',msg:'Desmarcar pagamento de <b>'+fmtR(t.amount)+'</b> de <b>'+nome+'</b>?',okLabel:'Desmarcar',okClass:'cbtn-danger',onOk:()=>desmarcarPago(t._key)});}
-        else{icon.onclick=()=>showConfirm({icon:'✅',msg:'Marcar venda de <b>'+fmtR(t.amount)+'</b> como paga?',okLabel:'Confirmar Pagamento',okClass:'cbtn-green',onOk:()=>marcarPago([t._key])});}
-      }
-    });
-  });
   if(hist){
     hist.style.display='';
     if(paidEntries.length){
       hist.innerHTML=paidEntries.map(([nome,data])=>{
-        const rows=data.txs.map(t=>'<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)"><span id="hist-icon-'+t._key+'" style="font-size:1.1rem;cursor:pointer;user-select:none" title="Clique para desmarcar pagamento">✅</span><div style="flex:1"><div style="font-size:.81rem;color:var(--muted)">'+(t.desc||'').replace(' | '+nome,'')+'</div><div style="font-size:.69rem;color:var(--muted)">'+t.date+(t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div><span style="font-weight:600;font-size:.85rem;color:var(--green)">'+fmtR(t.amount)+'</span></div>').join('');
+        const safeNome=nome.replace(/'/g,"\\'");
+        const rows=data.txs.map(t=>'<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--border)"><span onclick="_fHistIcon(\''+t._key+'\','+t.amount+',\''+safeNome+'\')" style="font-size:1.1rem;cursor:pointer;user-select:none" title="Clique para desmarcar pagamento">✅</span><div style="flex:1"><div style="font-size:.81rem;color:var(--muted)">'+(t.desc||'').replace(' | '+nome,'')+'</div><div style="font-size:.69rem;color:var(--muted)">'+t.date+(t.paidDate?' · Pago: '+t.paidDate:'')+'</div></div><span style="font-weight:600;font-size:.85rem;color:var(--green)">'+fmtR(t.amount)+'</span></div>').join('');
         return '<div style="margin-bottom:12px"><div style="font-weight:700;font-size:.85rem;color:var(--bd);margin-bottom:4px">👤 '+nome+'</div>'+rows+'</div>';
       }).join('');
-      paidEntries.forEach(([nome,data])=>{data.txs.forEach(t=>{const icon=document.getElementById('hist-icon-'+t._key);if(icon)icon.onclick=()=>showConfirm({icon:'↩️',msg:'Desmarcar pagamento de <b>'+fmtR(t.amount)+'</b> de <b>'+nome+'</b>?',okLabel:'Desmarcar',okClass:'cbtn-danger',onOk:()=>desmarcarPago(t._key)});});});
     }else{
       hist.innerHTML='<div style="color:var(--muted);font-size:.83rem;padding:8px">Nenhum cliente totalmente quitado ainda.</div>';
     }
